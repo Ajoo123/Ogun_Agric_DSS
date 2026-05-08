@@ -1,3 +1,5 @@
-streamlit 
-rasterio 
-matplotlib 
+streamlit
+rasterio
+pandas
+folium
+streamlit-folium
