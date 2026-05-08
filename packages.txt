@@ -1,1 +1,1 @@
-libgdal-dev g++ 
+libgdal-dev g++ python3-dev 
