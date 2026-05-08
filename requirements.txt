@@ -3,3 +3,4 @@ rasterio
 pandas
 folium
 streamlit-folium
+openpyxl
