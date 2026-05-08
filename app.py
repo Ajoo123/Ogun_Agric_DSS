@@ -8,175 +8,143 @@ from datetime import datetime
 import io
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Ogun State Agric-Pro DSS", layout="wide", page_icon="🇳🇬")
+st.set_page_config(page_title="Ogun State Agric-Elite DSS", layout="wide", page_icon="🇳🇬")
 
-# --- MINISTRY-GRADE STYLING ---
+# --- INITIALIZE SESSION STATE (Memory) ---
+if 'analysis_results' not in st.session_state:
+    st.session_state.analysis_results = None
+if 'farm_journal' not in st.session_state:
+    st.session_state.farm_journal = []
+
+# --- STYLING ---
 st.markdown("""
     <style>
-    .main { background-color: #f8faf8; }
-    .stMetric { 
-        background-color: #ffffff; 
-        padding: 20px; 
-        border-radius: 15px; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-        border-left: 6px solid #2e7d32; 
-    }
-    .report-header { 
-        color: #1b5e20; 
-        font-family: 'Segoe UI', sans-serif; 
-        border-bottom: 3px solid #2e7d32; 
-        padding-bottom: 10px; 
-        margin-bottom: 25px; 
-        font-weight: bold;
-    }
-    .guide-card {
-        background-color: #e8f5e9;
-        padding: 25px;
-        border-radius: 15px;
-        border: 1px solid #c8e6c9;
-        line-height: 1.6;
-    }
+    .main { background-color: #f4f7f1; }
+    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 15px; border-top: 5px solid #2e7d32; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .category-header { color: #1b5e20; font-weight: bold; border-bottom: 2px solid #2e7d32; padding-bottom: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- COMPREHENSIVE CROP DATABASE ---
+# --- THE ALL-INCLUSIVE NIGERIAN CROP DATABASE ---
 CROP_DB = {
-    "Beans (Cowpea)": {"type": "Legume", "season": "Apr-May / Aug-Sept", "harvest": "3 months", "profit_margin": 0.48, "advice": "Excellent for nitrogen fixation. Use improved varieties like IT99K."},
-    "Cocoa": {"type": "Cash Crop", "season": "Oct-Mar (Harvest)", "harvest": "3-5 years", "profit_margin": 0.78, "advice": "Ministry Standard: Ensure 3m x 3m spacing and provide nursery shade."},
-    "Cashew": {"type": "Cash Crop", "season": "Jan-Mar", "harvest": "3-4 years", "profit_margin": 0.65, "advice": "High tolerance for dry spells in Northern Ogun regions."},
-    "Cassava": {"type": "Root/Tuber", "season": "Mar-June", "harvest": "10-12 months", "profit_margin": 0.45, "advice": "Process quickly after harvest to maintain high starch quality."},
-    "Maize": {"type": "Cereal", "season": "Mar-Apr (Early) / Aug (Late)", "harvest": "3-4 months", "profit_margin": 0.38, "advice": "Apply NPK 15-15-15 at planting for maximum yield."},
-    "Oil Palm": {"type": "Cash Crop", "season": "Year-round", "harvest": "3-4 years", "profit_margin": 0.82, "advice": "Gold mine for Ogun investors. Requires consistent moisture in year 1."},
-    "Tomato": {"type": "Vegetable", "season": "Oct-Feb (Dry Season)", "harvest": "3 months", "profit_margin": 0.62, "advice": "High demand in Lagos/Abeokuta markets. Requires irrigation."},
-    "Plantain": {"type": "Fruit", "season": "Year-round", "harvest": "10-12 months", "profit_margin": 0.50, "advice": "Use organic mulch and poultry droppings for bigger bunches."},
-    "Pepper (Rodo)": {"type": "Vegetable", "season": "Year-round", "harvest": "3-4 months", "profit_margin": 0.55, "advice": "Harvest weekly to encourage new fruit growth."}
+    "Grains & Cereals": {
+        "Maize": {"margin": 0.38, "season": "Mar-Apr / Aug", "harvest": "4 months", "advice": "Apply NPK 15-15-15."},
+        "Rice": {"margin": 0.52, "season": "May-July", "harvest": "5 months", "advice": "Best for Ogun riverine lowlands."},
+        "Beans (Cowpea)": {"margin": 0.48, "season": "Apr / Aug-Sept", "harvest": "3 months", "advice": "Nitrogen-fixing; improves soil."}
+    },
+    "Roots & Tubers": {
+        "Cassava": {"margin": 0.45, "season": "Mar-June", "harvest": "12 months", "advice": "Process quickly after harvest."},
+        "Yam": {"margin": 0.55, "season": "Feb-Apr", "harvest": "8 months", "advice": "Requires deep, loose loamy soil."},
+        "Sweet Potato": {"margin": 0.42, "season": "May-July", "harvest": "4 months", "advice": "Grows well in sandy loam."}
+    },
+    "Fruits": {
+        "Pineapple": {"margin": 0.58, "season": "Year-round", "harvest": "18 months", "advice": "Ogun is a leader in pineapple export."},
+        "Orange (Citrus)": {"margin": 0.50, "season": "May-June", "harvest": "3 years", "advice": "Requires consistent pruning."},
+        "Plantain/Banana": {"margin": 0.54, "season": "Year-round", "harvest": "11 months", "advice": "Keep in wind-protected areas."}
+    },
+    "Vegetables": {
+        "Tomato": {"margin": 0.65, "season": "Oct-Feb", "harvest": "3 months", "advice": "High market demand in Lagos."},
+        "Pepper (Rodo)": {"margin": 0.55, "season": "Year-round", "harvest": "4 months", "advice": "Harvest weekly for more yield."},
+        "Ugu (Leafy)": {"margin": 0.40, "season": "Apr-Oct", "harvest": "1 month", "advice": "Fastest cash-flow crop."}
+    },
+    "Cash Crops": {
+        "Cocoa": {"margin": 0.80, "season": "Oct-Mar", "harvest": "3-5 years", "advice": "Requires shade canopy for seedlings."},
+        "Cashew": {"margin": 0.65, "season": "Jan-Mar", "harvest": "4 years", "advice": "Thrives in Northern Ogun (Yewa)."},
+        "Oil Palm": {"margin": 0.85, "season": "Year-round", "harvest": "4 years", "advice": "Most profitable long-term crop."}
+    }
 }
 
-# --- SIDEBAR NAVIGATION ---
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Flag_of_Ogun_State.svg/2560px-Flag_of_Ogun_State.svg.png", width=120)
-st.sidebar.title("System Menu")
-app_mode = st.sidebar.radio("Navigate", ["Live Analysis Dashboard", "Ministry User Guide"])
+# --- SIDEBAR CONTROLS ---
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Flag_of_Ogun_State.svg/2560px-Flag_of_Ogun_State.svg.png", width=100)
+    st.title("Admin Controls")
+    
+    if st.button("🧹 Clear Dashboard"):
+        st.session_state.analysis_results = None
+        st.rerun()
+    
+    st.markdown("---")
+    st.subheader("📝 Saved Farm Logs")
+    for log in reversed(st.session_state.farm_journal):
+        st.caption(log)
 
-if app_mode == "Ministry User Guide":
-    st.markdown("<h1 class='report-header'>📖 Official Operations Manual</h1>", unsafe_allow_html=True)
-    st.markdown("""
-    <div class="guide-card">
-    <h3>Standard Operating Procedure (SOP)</h3>
-    <ol>
-        <li><b>Coordinate Verification:</b> Input UTM Zone 31N Easting and Northing. If coordinates fall outside the state boundary, the system will lock for data integrity.</li>
-        <li><b>Soil Intelligence:</b> The system cross-references GPS pings with rasterized Nitrogen and Clay data.</li>
-        <li><b>Economic Modeling:</b> Profit is calculated based on 2026 standardized production costs (N280,000/Ha) and crop-specific margins.</li>
-        <li><b>Reporting:</b> Always download the Excel report for physical filing at the Ministry of Agriculture.</li>
-    </ol>
-    <hr>
-    <i>Certification: This DSS is designed for precision agricultural planning in Ogun State.</i>
-    </div>
-    """, unsafe_allow_html=True)
+# --- MAIN DASHBOARD ---
+st.title("🟢 Ogun State Agricultural Intelligence Portal")
+st.markdown("### Official Decision Support System for Precision Farming")
 
-else:
-    # --- DASHBOARD PAGE ---
-    st.markdown("<h1 style='text-align: center; color: #1b5e20;'>OGUN STATE AGRICULTURAL DSS</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Precision Site Suitability & Profitability Portal</p>", unsafe_allow_html=True)
+# --- STEP 1: INPUTS ---
+with st.container():
+    st.markdown("<h3 class='category-header'>1. Site & Crop Selection</h3>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    with c1: utm_e = st.number_input("UTM Easting (X)", value=552000.0)
+    with c2: utm_n = st.number_input("UTM Northing (Y)", value=790000.0)
+    with c3: land_size = st.number_input("Land Size (Ha)", min_value=0.1, value=1.0)
+    
+    # Classification Logic
+    cat_col1, cat_col2 = st.columns(2)
+    with cat_col1:
+        category = st.selectbox("Crop Category", list(CROP_DB.keys()))
+    with cat_col2:
+        crop = st.selectbox("Specific Crop", list(CROP_DB[category].keys()))
 
-    # --- ROW 1: INPUT PARAMETERS ---
-    with st.container():
-        st.markdown("<h3 class='report-header'>1. Farm Parameters</h3>", unsafe_allow_html=True)
-        i1, i2, i3, i4 = st.columns(4)
-        with i1: utm_e = st.number_input("UTM Easting (X)", value=552000.0)
-        with i2: utm_n = st.number_input("UTM Northing (Y)", value=790000.0)
-        with i3: land_size = st.number_input("Land Area (Hectares)", min_value=0.1, value=1.0, step=0.5)
-        with i4: selected_crop = st.selectbox("Select Target Crop", list(CROP_DB.keys()))
+# --- STEP 2: ANALYSIS TRIGGER ---
+if st.button("📊 GENERATE OFFICIAL SITE REPORT", use_container_width=True):
+    if not (450000 <= utm_e <= 635000 and 700000 <= utm_n <= 870000):
+        st.error("🚨 BOUNDARY ERROR: Site is outside Ogun State territory.")
+    else:
+        # DATA FETCHING
+        base_path = "raw_data/dem/"
+        soil = {}
+        for label, fname in {"Nitrogen": "ogun_nitrogen.tif", "Clay": "ogun_clay.tif"}.items():
+            path = os.path.join(base_path, fname)
+            if os.path.exists(path):
+                with rasterio.open(path) as src:
+                    soil[label] = list(src.sample([(utm_e, utm_n)]))[0][0]
+            else:
+                soil[label] = 0
+        
+        # CALCULATION
+        prof = (280000 * CROP_DB[category][crop]["margin"]) * land_size
+        
+        # SAVE TO MEMORY
+        st.session_state.analysis_results = {
+            "crop": crop, "cat": category, "prof": prof, "soil": soil,
+            "e": utm_e, "n": utm_n, "size": land_size
+        }
 
-    # --- CALCULATION TRIGGER ---
-    if st.button("📊 GENERATE OFFICIAL ANALYTIC REPORT", use_container_width=True):
-        # 1. GEOFENCE SECURITY (Ogun Boundaries)
-        if not (450000 <= utm_e <= 635000 and 700000 <= utm_n <= 870000):
-            st.error("🚨 BOUNDARY VIOLATION: Coordinate detected outside Ogun State. Process terminated.")
-        else:
-            # 2. DATA EXTRACTION
-            base_path = "raw_data/dem/"
-            soil_data = {}
-            files_to_check = {"Nitrogen": "ogun_nitrogen.tif", "Clay": "ogun_clay.tif", "Sand": "ogun_sand.tif"}
-            
-            try:
-                for label, fname in files_to_check.items():
-                    fpath = os.path.join(base_path, fname)
-                    if os.path.exists(fpath):
-                        with rasterio.open(fpath) as src:
-                            val = list(src.sample([(utm_e, utm_n)]))[0][0]
-                            soil_data[label] = val
-                    else:
-                        soil_data[label] = "N/A"
+# --- STEP 3: PERSISTENT RESULTS ---
+if st.session_state.analysis_results:
+    res = st.session_state.analysis_results
+    st.markdown("<h3 class='category-header'>2. Geographic & Economic Results</h3>", unsafe_allow_html=True)
+    
+    r1, r2 = st.columns([1, 1])
+    with r1:
+        m = folium.Map(location=[7.15, 3.35], zoom_start=9)
+        folium.Marker([7.15, 3.35], popup="Proposed Farm Site", icon=folium.Icon(color='green')).add_to(m)
+        st_folium(m, height=350, use_container_width=True, key="main_map")
+        
+    with r2:
+        st.metric("Estimated Net Profit", f"₦{res['prof']:,.2f}", delta="Annualized")
+        st.info(f"**Season:** {CROP_DB[res['cat']][res['crop']]['season']} | **Harvest:** {CROP_DB[res['cat']][res['crop']]['harvest']}")
+        st.success(f"💡 **Expert Advice:** {CROP_DB[res['cat']][res['crop']]['advice']}")
+        
+        if st.button("💾 Save to Farm Journal"):
+            log_entry = f"{datetime.now().strftime('%H:%M')}: Analyzed {res['crop']} on {res['size']}Ha"
+            st.session_state.farm_journal.append(log_entry)
+            st.toast("Report Saved to Sidebar Journal!")
 
-                # 3. PROFITABILITY CALCULATOR
-                base_production_cost = 280000 
-                profit_calc = (base_production_cost * CROP_DB[selected_crop]["profit_margin"]) * land_size
+    st.markdown("<h3 class='category-header'>3. Soil Nutrient Profile</h3>", unsafe_allow_html=True)
+    s1, s2 = st.columns(2)
+    s1.metric("Nitrogen (N)", f"{res['soil'].get('Nitrogen')} mg/kg")
+    s2.metric("Clay Content", f"{res['soil'].get('Clay', 0)/10}%")
 
-                # --- ROW 2: VISUAL INTELLIGENCE ---
-                st.markdown("<h3 class='report-header'>2. Geographic & Economic Intelligence</h3>", unsafe_allow_html=True)
-                v1, v2 = st.columns([1, 1])
-                
-                with v1:
-                    st.write("🌍 **Farm Location Map**")
-                    # Approximate Lat/Lon for map centering
-                    m = folium.Map(location=[7.15, 3.35], zoom_start=9)
-                    folium.Marker([7.15, 3.35], popup=f"Proposed {selected_crop} Farm", icon=folium.Icon(color='darkgreen')).add_to(m)
-                    st_folium(m, height=350, use_container_width=True)
+    # --- EXPORT ---
+    df = pd.DataFrame([{"Date": datetime.now().strftime("%Y-%m-%d"), "Crop": res['crop'], "Profit": res['prof']}])
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    
+    st.download_button("📥 Download Excel Report", data=buf.getvalue(), file_name="Ogun_Agric_Report.xlsx", use_container_width=True)
 
-                with v2:
-                    st.metric("Estimated Net Profit", f"₦{profit_calc:,.2f}", delta="ROI Optimized")
-                    st.write(f"**Crop Type:** {CROP_DB[selected_crop]['type']}")
-                    st.write(f"**Optimal Season:** {CROP_DB[selected_crop]['season']}")
-                    st.write(f"**Time to Harvest:** {CROP_DB[selected_crop]['harvest']}")
-                    st.success(f"📘 **Ministry Guidance:** {CROP_DB[selected_crop]['advice']}")
-
-                # --- ROW 3: SOIL PROFILE ---
-                st.markdown("<h3 class='report-header'>3. Soil Nutrient Analysis</h3>", unsafe_allow_html=True)
-                s1, s2, s3 = st.columns(3)
-                s1.metric("Nitrogen (N)", f"{soil_data.get('Nitrogen')} mg/kg")
-                s2.metric("Clay Content", f"{soil_data.get('Clay', 0)/10 if soil_data.get('Clay') != 'N/A' else 0}%")
-                s3.metric("Sand Content", f"{soil_data.get('Sand', 0)/10 if soil_data.get('Sand') != 'N/A' else 0}%")
-
-                # --- ROW 4: EXPORT ENGINE ---
-                st.markdown("<h3 class='report-header'>4. Official Data Export</h3>", unsafe_allow_html=True)
-                
-                # Prepare data for all formats
-                report_dict = {
-                    "Analysis_Date": [datetime.now().strftime("%Y-%m-%d")],
-                    "UTM_X": [utm_e], "UTM_Y": [utm_n],
-                    "Crop": [selected_crop], "Land_Size_Ha": [land_size],
-                    "Profit_Naira": [profit_calc], "Nitrogen_Level": [soil_data.get('Nitrogen')]
-                }
-                df_report = pd.DataFrame(report_dict)
-
-                e1, e2 = st.columns(2)
-                
-                # Excel Export
-                excel_buffer = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    df_report.to_excel(writer, index=False, sheet_name='Ogun_Agric_Report')
-                
-                with e1:
-                    st.download_button(
-                        label="📥 Download Professional Excel Report",
-                        data=excel_buffer.getvalue(),
-                        file_name=f"Ogun_Report_{selected_crop}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                
-                with e2:
-                    st.download_button(
-                        label="📄 Download CSV Data File",
-                        data=df_report.to_csv(index=False).encode('utf-8'),
-                        file_name=f"Ogun_Data_{selected_crop}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-
-            except Exception as e:
-                st.error(f"Analysis failed to execute: {e}")
-
-# --- FOOTER ---
 st.markdown("---")
-st.caption("Ogun State Agricultural Decision Support System v3.0 | Faculty of Engineering Deployment")
+st.caption("Ogun State Agric-Pro DSS v4.0 | Faculty of Engineering Deployment")
