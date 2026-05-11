@@ -1,6 +1,7 @@
 streamlit
-rasterio
+fpdf2
+python-docx
 pandas
 folium
 streamlit-folium
-openpyxl
+rasterio
